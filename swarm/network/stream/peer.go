@@ -24,9 +24,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
-	"github.com/ethereum/go-ethereum/p2p/protocols"
 	pq "github.com/ethereum/go-ethereum/swarm/network/priorityqueue"
 	"github.com/ethereum/go-ethereum/swarm/network/stream/intervals"
+	"github.com/ethereum/go-ethereum/swarm/p2p/protocols"
 	"github.com/ethereum/go-ethereum/swarm/state"
 	"github.com/ethereum/go-ethereum/swarm/storage"
 )

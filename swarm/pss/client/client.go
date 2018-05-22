@@ -13,9 +13,9 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
-	"github.com/ethereum/go-ethereum/p2p/protocols"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/swarm/p2p/protocols"
 	"github.com/ethereum/go-ethereum/swarm/pss"
 )
 
@@ -211,7 +211,7 @@ func newClient() (client *Client) {
 // Mounts a new devp2p protcool on the pss connection
 //
 // the protocol is aliased as a "pss topic"
-// uses normal devp2p send and incoming message handler routines from the p2p/protocols package
+// uses normal devp2p send and incoming message handler routines from the swarm/p2p/protocols package
 //
 // when an incoming message is received from a peer that is not yet known to the client,
 // this peer object is instantiated, and the protocol is run on it.
