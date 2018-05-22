@@ -2,6 +2,7 @@ package pss
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"crypto/rand"
 	"errors"
@@ -323,7 +324,7 @@ func (self *Pss) getHandlers(topic Topic) map[*Handler]bool {
 // Check if address partially matches
 // If yes, it CAN be for us, and we process it
 // Only passes error to pss protocol handler if payload is not valid pssmsg
-func (self *Pss) handlePssMsg(msg interface{}) error {
+func (self *Pss) handlePssMsg(ctx context.Context, msg interface{}) error {
 	pssmsg, ok := msg.(*PssMsg)
 
 	if !ok {
@@ -798,7 +799,8 @@ func (self *Pss) forward(msg *PssMsg) error {
 		self.fwdPoolMu.RUnlock()
 
 		// attempt to send the message
-		err := pp.Send(msg)
+		ctx := context.TODO()
+		err := pp.Send(ctx, msg)
 		if err != nil {
 			return true
 		}

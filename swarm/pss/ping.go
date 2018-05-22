@@ -3,6 +3,7 @@
 package pss
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -24,7 +25,7 @@ type Ping struct {
 	InC  chan bool // optional, report back to calling code
 }
 
-func (self *Ping) pingHandler(msg interface{}) error {
+func (self *Ping) pingHandler(ctx context.Context, msg interface{}) error {
 	var pingmsg *PingMsg
 	var ok bool
 	if pingmsg, ok = msg.(*PingMsg); !ok {
@@ -64,7 +65,8 @@ func NewPingProtocol(ping *Ping) *p2p.Protocol {
 				for {
 					select {
 					case ispong := <-ping.OutC:
-						pp.Send(&PingMsg{
+						ctx := context.TODO()
+						pp.Send(ctx, &PingMsg{
 							Created: time.Now(),
 							Pong:    ispong,
 						})

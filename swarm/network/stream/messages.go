@@ -17,6 +17,7 @@
 package stream
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -81,7 +82,8 @@ func (p *Peer) handleSubscribeMsg(req *SubscribeMsg) (err error) {
 
 	defer func() {
 		if err != nil {
-			if e := p.Send(SubscribeErrorMsg{
+			ctx := context.TODO()
+			if e := p.Send(ctx, SubscribeErrorMsg{
 				Error: err.Error(),
 			}); e != nil {
 				log.Error("send stream subscribe error message", "err", err)
@@ -260,9 +262,9 @@ func (p *Peer) handleOfferedHashesMsg(req *OfferedHashesMsg) error {
 			return
 		}
 		log.Trace("sending want batch", "peer", p.ID(), "stream", msg.Stream, "from", msg.From, "to", msg.To)
-		err := p.SendPriority(msg, c.priority)
+		err := p.Send(context.TODO(), msg)
 		if err != nil {
-			log.Warn("SendPriority err, so dropping peer", "err", err)
+			log.Warn("Send err, so dropping peer", "err", err)
 			p.Drop(err)
 		}
 	}()

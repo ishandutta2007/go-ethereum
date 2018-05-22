@@ -235,7 +235,8 @@ func (r *Registry) RequestSubscription(peerId discover.NodeID, s Stream, h *Rang
 		if e, ok := err.(*notFoundError); ok && e.t == "server" {
 			// request subscription only if the server for this stream is not created
 			log.Debug("RequestSubscription ", "peer", peerId, "stream", s, "history", h)
-			return peer.Send(&RequestSubscriptionMsg{
+			ctx := context.TODO()
+			return peer.Send(ctx, &RequestSubscriptionMsg{
 				Stream:   s,
 				History:  h,
 				Priority: prio,
@@ -285,7 +286,7 @@ func (r *Registry) Subscribe(peerId discover.NodeID, s Stream, h *Range, priorit
 	}
 	log.Debug("Subscribe ", "peer", peerId, "stream", s, "history", h)
 
-	return peer.SendPriority(msg, priority)
+	return peer.Send(context.TODO(), msg)
 }
 
 func (r *Registry) Unsubscribe(peerId discover.NodeID, s Stream) error {
@@ -299,7 +300,8 @@ func (r *Registry) Unsubscribe(peerId discover.NodeID, s Stream) error {
 	}
 	log.Debug("Unsubscribe ", "peer", peerId, "stream", s)
 
-	if err := peer.Send(msg); err != nil {
+	ctx := context.TODO()
+	if err := peer.Send(ctx, msg); err != nil {
 		return err
 	}
 	return peer.removeClient(s)
@@ -320,7 +322,8 @@ func (r *Registry) Quit(peerId discover.NodeID, s Stream) error {
 	}
 	log.Debug("Quit ", "peer", peerId, "stream", s)
 
-	return peer.Send(msg)
+	ctx := context.TODO()
+	return peer.Send(ctx, msg)
 }
 
 func (r *Registry) Retrieve(chunk *storage.Chunk) error {
@@ -460,7 +463,7 @@ func (r *Registry) runProtocol(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 }
 
 // HandleMsg is the message handler that delegates incoming messages
-func (p *Peer) HandleMsg(msg interface{}) error {
+func (p *Peer) HandleMsg(ctx context.Context, msg interface{}) error {
 	switch msg := msg.(type) {
 
 	case *SubscribeMsg:
@@ -588,7 +591,7 @@ func (c *client) batchDone(p *Peer, req *OfferedHashesMsg, hashes []byte) error 
 		if err != nil {
 			return err
 		}
-		if err := p.SendPriority(tp, c.priority); err != nil {
+		if err := p.Send(context.TODO(), tp); err != nil {
 			return err
 		}
 		if c.to > 0 && tp.Takeover.End >= c.to {

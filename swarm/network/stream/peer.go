@@ -74,7 +74,7 @@ func NewPeer(peer *protocols.Peer, streamer *Registry) *Peer {
 		quit:         make(chan struct{}),
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	go p.pq.Run(ctx, func(i interface{}) { p.Send(i) })
+	go p.pq.Run(ctx, func(i interface{}) { p.Send(ctx, i) })
 	go func() {
 		<-p.quit
 		cancel()
@@ -88,7 +88,7 @@ func (p *Peer) Deliver(chunk *storage.Chunk, priority uint8) error {
 		Key:   chunk.Key,
 		SData: chunk.SData,
 	}
-	return p.SendPriority(msg, priority)
+	return p.Send(context.TODO(), msg)
 }
 
 // SendPriority sends message to the peer using the outgoing priority queue
@@ -124,7 +124,7 @@ func (p *Peer) SendOfferedHashes(s *server, f, t uint64) error {
 		Stream:        s.stream,
 	}
 	log.Trace("Swarm syncer offer batch", "peer", p.ID(), "stream", s.stream, "len", len(hashes), "from", from, "to", to)
-	return p.SendPriority(msg, s.priority)
+	return p.Send(context.TODO(), msg)
 }
 
 func (p *Peer) getServer(s Stream) (*server, error) {

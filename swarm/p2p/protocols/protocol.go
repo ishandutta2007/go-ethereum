@@ -29,6 +29,8 @@ devp2p subprotocols by abstracting away code standardly shared by protocols.
 package protocols
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"reflect"
@@ -37,6 +39,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/p2p"
+	opentracing "github.com/opentracing/opentracing-go"
 )
 
 // error codes used by this  protocol scheme
@@ -49,6 +52,7 @@ const (
 	ErrHandshake
 	ErrNoHandler
 	ErrHandler
+	ErrBrokenContext
 )
 
 // error description strings associated with the codes
@@ -61,6 +65,7 @@ var errorToString = map[int]string{
 	ErrHandshake:      "Handshake error",
 	ErrNoHandler:      "No handler registered error",
 	ErrHandler:        "Message handler error",
+	ErrBrokenContext:  "Context value present, but cannot unmarshal it",
 }
 
 /*
@@ -199,7 +204,7 @@ func NewPeer(p *p2p.Peer, rw p2p.MsgReadWriter, spec *Spec) *Peer {
 // the handler argument is a function which is called for each message received
 // from the remote peer, a returned error causes the loop to exit
 // resulting in disconnection
-func (p *Peer) Run(handler func(msg interface{}) error) error {
+func (p *Peer) Run(handler func(ctx context.Context, msg interface{}) error) error {
 	for {
 		if err := p.handleIncoming(handler); err != nil {
 			return err
@@ -218,14 +223,44 @@ func (p *Peer) Drop(err error) {
 // message off to the peer
 // this low level call will be wrapped by libraries providing routed or broadcast sends
 // but often just used to forward and push messages to directly connected peers
-func (p *Peer) Send(msg interface{}) error {
+func (p *Peer) Send(ctx context.Context, msg interface{}) error {
 	defer metrics.GetOrRegisterResettingTimer("peer.send_t", nil).UpdateSince(time.Now())
 	metrics.GetOrRegisterCounter("peer.send", nil).Inc(1)
+	var b bytes.Buffer
+	sctx, ok := ctx.Value("span_context").(opentracing.SpanContext)
+	if ok {
+		tracer := opentracing.GlobalTracer()
+
+		writer := bufio.NewWriter(&b)
+
+		err := tracer.Inject(
+			sctx,
+			opentracing.Binary,
+			writer)
+		if err != nil {
+			panic(err)
+		}
+
+		writer.Flush()
+	}
+
 	code, found := p.spec.GetCode(msg)
 	if !found {
 		return errorf(ErrInvalidMsgType, "%v", code)
 	}
-	return p2p.Send(p.rw, code, msg)
+
+	wmsg := WrappedMsg{
+		Context: b.Bytes(),
+		Payload: msg,
+	}
+
+	return p2p.Send(p.rw, code, wmsg)
+}
+
+// WrappedMsg wraps Msg's Payload and adds a Context for the purpose of transmitting OpenTracing across nodes
+type WrappedMsg struct {
+	Context []byte
+	Payload interface{}
 }
 
 // handleIncoming(code)
@@ -236,7 +271,7 @@ func (p *Peer) Send(msg interface{}) error {
 // * checks for out-of-range message codes,
 // * handles decoding with reflection,
 // * call handlers as callbacks
-func (p *Peer) handleIncoming(handle func(msg interface{}) error) error {
+func (p *Peer) handleIncoming(handle func(ctx context.Context, msg interface{}) error) error {
 	msg, err := p.rw.ReadMsg()
 	if err != nil {
 		return err
@@ -252,16 +287,37 @@ func (p *Peer) handleIncoming(handle func(msg interface{}) error) error {
 	if !ok {
 		return errorf(ErrInvalidMsgCode, "%v", msg.Code)
 	}
-	if err := msg.Decode(val); err != nil {
+
+	var wmsg WrappedMsg
+	wmsg.Payload = val
+
+	if err := msg.Decode(&wmsg); err != nil {
 		return errorf(ErrDecode, "<= %v: %v", msg, err)
 	}
+
+	// add opentracing
+	tracer := opentracing.GlobalTracer()
+
+	var sctx opentracing.SpanContext
+	if len(wmsg.Context) > 0 {
+		var err error
+		sctx, err = tracer.Extract(
+			opentracing.Binary,
+			bytes.NewReader(wmsg.Context))
+		if err != nil {
+			return errorf(ErrBrokenContext, "%v", err)
+		}
+	}
+
+	// generate context and pass to all APIs
+	ctx := context.WithValue(context.Background(), "span_context", sctx)
 
 	// call the registered handler callbacks
 	// a registered callback take the decoded message as argument as an interface
 	// which the handler is supposed to cast to the appropriate type
 	// it is entirely safe not to check the cast in the handler since the handler is
 	// chosen based on the proper type in the first place
-	if err := handle(val); err != nil {
+	if err := handle(ctx, wmsg.Payload); err != nil {
 		return errorf(ErrHandler, "(msg code %v): %v", msg.Code, err)
 	}
 	return nil
@@ -281,14 +337,14 @@ func (p *Peer) Handshake(ctx context.Context, hs interface{}, verify func(interf
 		return nil, errorf(ErrHandshake, "unknown handshake message type: %T", hs)
 	}
 	errc := make(chan error, 2)
-	handle := func(msg interface{}) error {
+	handle := func(ctx context.Context, msg interface{}) error {
 		rhs = msg
 		if verify != nil {
 			return verify(rhs)
 		}
 		return nil
 	}
-	send := func() { errc <- p.Send(hs) }
+	send := func() { errc <- p.Send(ctx, hs) }
 	receive := func() { errc <- p.handleIncoming(handle) }
 
 	go func() {
