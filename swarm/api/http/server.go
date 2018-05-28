@@ -712,7 +712,7 @@ func (s *Server) HandleGet(ctx context.Context, w http.ResponseWriter, r *Reques
 	}
 
 	// check the root chunk exists by retrieving the file's size
-	reader, isEncrypted := s.api.Retrieve(key)
+	reader, isEncrypted := s.api.Retrieve(ctx, key)
 	if _, err := reader.Size(nil); err != nil {
 		getFail.Inc(1)
 		Respond(w, r, fmt.Sprintf("root chunk not found %s: %s", key, err), http.StatusNotFound)
@@ -741,7 +741,7 @@ func (s *Server) HandleGet(ctx context.Context, w http.ResponseWriter, r *Reques
 // HandleGetFiles handles a GET request to bzz:/<manifest> with an Accept
 // header of "application/x-tar" and returns a tar stream of all files
 // contained in the manifest
-func (s *Server) HandleGetFiles(w http.ResponseWriter, r *Request) {
+func (s *Server) HandleGetFiles(ctx context.Context, w http.ResponseWriter, r *Request) {
 	log.Debug("handle.get.files", "ruid", r.ruid, "uri", r.uri)
 	getFilesCount.Inc(1)
 	if r.uri.Path != "" {
@@ -777,7 +777,7 @@ func (s *Server) HandleGetFiles(w http.ResponseWriter, r *Request) {
 		}
 
 		// retrieve the entry's key and size
-		reader, isEncrypted := s.api.Retrieve(storage.Key(common.Hex2Bytes(entry.Hash)))
+		reader, isEncrypted := s.api.Retrieve(ctx, storage.Key(common.Hex2Bytes(entry.Hash)))
 		size, err := reader.Size(nil)
 		if err != nil {
 			return err
@@ -1092,7 +1092,7 @@ func (s *Server) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		}
 
 		if r.Header.Get("Accept") == "application/x-tar" {
-			s.HandleGetFiles(w, req)
+			s.HandleGetFiles(context.TODO(), w, req)
 			return
 		}
 

@@ -238,8 +238,8 @@ func (self *Api) Upload(uploadDir, index string, toEncrypt bool) (hash string, e
 }
 
 // DPA reader API
-func (self *Api) Retrieve(key storage.Key) (reader storage.LazySectionReader, isEncrypted bool) {
-	return self.dpa.Retrieve(key)
+func (self *Api) Retrieve(ctx context.Context, key storage.Key) (reader storage.LazySectionReader, isEncrypted bool) {
+	return self.dpa.Retrieve(ctx, key)
 }
 
 func (self *Api) Store(data io.Reader, size int64, toEncrypt bool) (key storage.Key, wait func(), err error) {
@@ -321,7 +321,14 @@ func (self *Api) Put(content, contentType string, toEncrypt bool) (k storage.Key
 func (self *Api) Get(ctx context.Context, manifestKey storage.Key, path string) (reader storage.LazySectionReader, mimeType string, status int, contentKey storage.Key, err error) {
 	log.Debug("api.get", "key", manifestKey, "path", path)
 	apiGetCount.Inc(1)
-	trie, err := loadManifest(self.dpa, manifestKey, nil)
+
+	var sp opentracing.Span
+	ctx, sp = spancontext.StartSpan(
+		ctx,
+		"api.get")
+	defer sp.Finish()
+
+	trie, err := loadManifest(ctx, self.dpa, manifestKey, nil)
 	if err != nil {
 		apiGetNotFound.Inc(1)
 		status = http.StatusNotFound
@@ -388,7 +395,7 @@ func (self *Api) Get(ctx context.Context, manifestKey storage.Key, path string) 
 				log.Trace("resource is multihash", "key", manifestKey)
 
 				// get the manifest the multihash digest points to
-				trie, err := loadManifest(self.dpa, manifestKey, nil)
+				trie, err := loadManifest(ctx, self.dpa, manifestKey, nil)
 				if err != nil {
 					apiGetNotFound.Inc(1)
 					status = http.StatusNotFound
@@ -423,7 +430,7 @@ func (self *Api) Get(ctx context.Context, manifestKey storage.Key, path string) 
 		} else {
 			mimeType = entry.ContentType
 			log.Debug("content lookup key", "key", contentKey, "mimetype", mimeType)
-			reader, _ = self.dpa.Retrieve(contentKey)
+			reader, _ = self.dpa.Retrieve(ctx, contentKey)
 		}
 	} else {
 		// no entry found
@@ -438,7 +445,7 @@ func (self *Api) Get(ctx context.Context, manifestKey storage.Key, path string) 
 func (self *Api) Modify(key storage.Key, path, contentHash, contentType string) (storage.Key, error) {
 	apiModifyCount.Inc(1)
 	quitC := make(chan bool)
-	trie, err := loadManifest(self.dpa, key, quitC)
+	trie, err := loadManifest(context.TODO(), self.dpa, key, quitC)
 	if err != nil {
 		apiModifyFail.Inc(1)
 		return nil, err
@@ -562,7 +569,7 @@ func (self *Api) AppendFile(mhash, path, fname string, existingSize int64, conte
 
 	buf := make([]byte, buffSize)
 
-	oldReader, _ := self.Retrieve(oldKey)
+	oldReader, _ := self.Retrieve(context.TODO(), oldKey)
 	io.ReadAtLeast(oldReader, buf, int(offset))
 
 	newReader := bytes.NewReader(content)
@@ -645,7 +652,7 @@ func (self *Api) BuildDirectoryTree(mhash string, nameresolver bool) (key storag
 	}
 
 	quitC := make(chan bool)
-	rootTrie, err := loadManifest(self.dpa, key, quitC)
+	rootTrie, err := loadManifest(context.TODO(), self.dpa, key, quitC)
 	if err != nil {
 		return nil, nil, fmt.Errorf("can't load manifest %v: %v", key.String(), err)
 	}
@@ -721,7 +728,7 @@ func (self *Api) ResourceIsValidated() bool {
 }
 
 func (self *Api) ResolveResourceManifest(key storage.Key) (storage.Key, error) {
-	trie, err := loadManifest(self.dpa, key, nil)
+	trie, err := loadManifest(context.TODO(), self.dpa, key, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot load resource manifest: %v", err)
 	}

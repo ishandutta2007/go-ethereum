@@ -82,7 +82,7 @@ func (sf *SwarmFile) Attr(ctx context.Context, a *fuse.Attr) error {
 	a.Gid = uint32(os.Getegid())
 
 	if sf.fileSize == -1 {
-		reader, _ := sf.mountInfo.swarmApi.Retrieve(sf.key)
+		reader, _ := sf.mountInfo.swarmApi.Retrieve(context.TODO(), sf.key)
 		quitC := make(chan bool)
 		size, err := reader.Size(quitC)
 		if err != nil {
@@ -99,7 +99,7 @@ func (sf *SwarmFile) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse
 	sf.lock.RLock()
 	defer sf.lock.RUnlock()
 	if sf.reader == nil {
-		sf.reader, _ = sf.mountInfo.swarmApi.Retrieve(sf.key)
+		sf.reader, _ = sf.mountInfo.swarmApi.Retrieve(context.TODO(), sf.key)
 	}
 	buf := make([]byte, req.Size)
 	n, err := sf.reader.ReadAt(buf, req.Offset)

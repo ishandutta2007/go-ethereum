@@ -17,6 +17,7 @@
 package storage
 
 import (
+	"context"
 	"io"
 )
 
@@ -78,10 +79,10 @@ func NewDPA(store ChunkStore, params *DPAParams) *DPA {
 // Chunk retrieval blocks on netStore requests with a timeout so reader will
 // report error if retrieval of chunks within requested range time out.
 // It returns a reader with the chunk data and whether the content was encrypted
-func (self *DPA) Retrieve(key Key) (reader *LazyChunkReader, isEncrypted bool) {
+func (self *DPA) Retrieve(ctx context.Context, key Key) (reader *LazyChunkReader, isEncrypted bool) {
 	isEncrypted = len(key) > self.hashFunc().Size()
 	getter := NewHasherStore(self.ChunkStore, self.hashFunc, isEncrypted)
-	reader = TreeJoin(key, getter, 0)
+	reader = TreeJoin(ctx, key, getter, 0)
 	return
 }
 

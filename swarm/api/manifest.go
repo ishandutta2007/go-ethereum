@@ -18,6 +18,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,7 +29,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/swarm/spancontext"
 	"github.com/ethereum/go-ethereum/swarm/storage"
+	opentracing "github.com/opentracing/opentracing-go"
 )
 
 const (
@@ -97,7 +100,7 @@ type ManifestWriter struct {
 }
 
 func (a *Api) NewManifestWriter(key storage.Key, quitC chan bool) (*ManifestWriter, error) {
-	trie, err := loadManifest(a.dpa, key, quitC)
+	trie, err := loadManifest(context.TODO(), a.dpa, key, quitC)
 	if err != nil {
 		return nil, fmt.Errorf("error loading manifest %s: %s", key, err)
 	}
@@ -137,7 +140,7 @@ type ManifestWalker struct {
 }
 
 func (a *Api) NewManifestWalker(key storage.Key, quitC chan bool) (*ManifestWalker, error) {
-	trie, err := loadManifest(a.dpa, key, quitC)
+	trie, err := loadManifest(context.TODO(), a.dpa, key, quitC)
 	if err != nil {
 		return nil, fmt.Errorf("error loading manifest %s: %s", key, err)
 	}
@@ -204,10 +207,16 @@ type manifestTrieEntry struct {
 	subtrie *manifestTrie
 }
 
-func loadManifest(dpa *storage.DPA, hash storage.Key, quitC chan bool) (trie *manifestTrie, err error) { // non-recursive, subtrees are downloaded on-demand
+func loadManifest(ctx context.Context, dpa *storage.DPA, hash storage.Key, quitC chan bool) (trie *manifestTrie, err error) { // non-recursive, subtrees are downloaded on-demand
+	var sp opentracing.Span
+	ctx, sp = spancontext.StartSpan(
+		ctx,
+		"load.manifest")
+	defer sp.Finish()
+
 	log.Trace("manifest lookup", "key", hash)
 	// retrieve manifest via DPA
-	manifestReader, isEncrypted := dpa.Retrieve(hash)
+	manifestReader, isEncrypted := dpa.Retrieve(ctx, hash)
 	log.Trace("reader retrieved", "key", hash)
 	return readManifest(manifestReader, hash, dpa, isEncrypted, quitC)
 }
@@ -391,7 +400,7 @@ func (self *manifestTrie) recalcAndStore() error {
 func (self *manifestTrie) loadSubTrie(entry *manifestTrieEntry, quitC chan bool) (err error) {
 	if entry.subtrie == nil {
 		hash := common.Hex2Bytes(entry.Hash)
-		entry.subtrie, err = loadManifest(self.dpa, hash, quitC)
+		entry.subtrie, err = loadManifest(context.TODO(), self.dpa, hash, quitC)
 		entry.Hash = "" // might not match, should be recalculated
 	}
 	return

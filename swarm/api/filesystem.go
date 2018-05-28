@@ -201,7 +201,7 @@ func (self *FileSystem) Download(bzzpath, localpath string) error {
 	}
 
 	quitC := make(chan bool)
-	trie, err := loadManifest(self.api.dpa, key, quitC)
+	trie, err := loadManifest(context.TODO(), self.api.dpa, key, quitC)
 	if err != nil {
 		log.Warn(fmt.Sprintf("fs.Download: loadManifestTrie error: %v", err))
 		return err
@@ -274,7 +274,7 @@ func retrieveToFile(quitC chan bool, dpa *storage.DPA, key storage.Key, path str
 	if err != nil {
 		return err
 	}
-	reader, _ := dpa.Retrieve(key)
+	reader, _ := dpa.Retrieve(context.TODO(), key)
 	writer := bufio.NewWriter(f)
 	size, err := reader.Size(quitC)
 	if err != nil {

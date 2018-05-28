@@ -16,6 +16,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -95,6 +96,8 @@ type JoinerParams struct {
 }
 
 type TreeChunker struct {
+	ctx context.Context
+
 	branches int64
 	hashFunc SwarmHasher
 	dataSize int64
@@ -126,8 +129,8 @@ type TreeChunker struct {
 	The chunks are not meant to be validated by the chunker when joining. This
 	is because it is left to the DPA to decide which sources are trusted.
 */
-func TreeJoin(key Key, getter Getter, depth int) *LazyChunkReader {
-	return NewTreeJoiner(NewJoinerParams(key, getter, depth, DefaultChunkSize)).Join()
+func TreeJoin(ctx context.Context, key Key, getter Getter, depth int) *LazyChunkReader {
+	return NewTreeJoiner(ctx, NewJoinerParams(key, getter, depth, DefaultChunkSize)).Join()
 }
 
 /*
@@ -151,8 +154,9 @@ func NewJoinerParams(key Key, getter Getter, depth int, chunkSize int64) *Joiner
 	}
 }
 
-func NewTreeJoiner(params *JoinerParams) *TreeChunker {
+func NewTreeJoiner(ctx context.Context, params *JoinerParams) *TreeChunker {
 	self := &TreeChunker{}
+	self.ctx = ctx
 	self.hashSize = params.hashSize
 	self.branches = params.chunkSize / self.hashSize
 	self.key = params.key
