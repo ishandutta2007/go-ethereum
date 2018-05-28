@@ -326,8 +326,8 @@ func (r *Registry) Quit(peerId discover.NodeID, s Stream) error {
 	return peer.Send(ctx, msg)
 }
 
-func (r *Registry) Retrieve(chunk *storage.Chunk) error {
-	return r.delivery.RequestFromPeers(chunk.Key[:], r.skipCheck)
+func (r *Registry) Retrieve(ctx context.Context, chunk *storage.Chunk) error {
+	return r.delivery.RequestFromPeers(ctx, chunk.Key[:], r.skipCheck)
 }
 
 func (r *Registry) NodeInfo() interface{} {
@@ -476,19 +476,19 @@ func (p *Peer) HandleMsg(ctx context.Context, msg interface{}) error {
 		return p.handleUnsubscribeMsg(msg)
 
 	case *OfferedHashesMsg:
-		return p.handleOfferedHashesMsg(msg)
+		return p.handleOfferedHashesMsg(ctx, msg)
 
 	case *TakeoverProofMsg:
-		return p.handleTakeoverProofMsg(msg)
+		return p.handleTakeoverProofMsg(ctx, msg)
 
 	case *WantedHashesMsg:
-		return p.handleWantedHashesMsg(msg)
+		return p.handleWantedHashesMsg(ctx, msg)
 
 	case *ChunkDeliveryMsg:
-		return p.streamer.delivery.handleChunkDeliveryMsg(p, msg)
+		return p.streamer.delivery.handleChunkDeliveryMsg(ctx, p, msg)
 
 	case *RetrieveRequestMsg:
-		return p.streamer.delivery.handleRetrieveRequestMsg(p, msg)
+		return p.streamer.delivery.handleRetrieveRequestMsg(ctx, p, msg)
 
 	case *RequestSubscriptionMsg:
 		return p.handleRequestSubscription(msg)

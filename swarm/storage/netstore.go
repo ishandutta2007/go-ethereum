@@ -17,6 +17,7 @@
 package storage
 
 import (
+	"context"
 	"time"
 
 	"github.com/ethereum/go-ethereum/log"
@@ -43,10 +44,10 @@ var (
 // access by calling network is blocking with a timeout
 type NetStore struct {
 	localStore *LocalStore
-	retrieve   func(chunk *Chunk) error
+	retrieve   func(ctx context.Context, chunk *Chunk) error
 }
 
-func NewNetStore(localStore *LocalStore, retrieve func(chunk *Chunk) error) *NetStore {
+func NewNetStore(localStore *LocalStore, retrieve func(ctx context.Context, chunk *Chunk) error) *NetStore {
 	return &NetStore{localStore, retrieve}
 }
 
@@ -142,7 +143,7 @@ func (self *NetStore) get(key Key, timeout time.Duration) (chunk *Chunk, err err
 		}
 
 		if created {
-			err := self.retrieve(chunk)
+			err := self.retrieve(context.TODO(), chunk)
 			if err != nil {
 				// mark chunk request as failed so that we can retry it later
 				chunk.SetErrored(ErrChunkUnavailable)

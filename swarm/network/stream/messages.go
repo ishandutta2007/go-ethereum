@@ -183,7 +183,7 @@ func (m OfferedHashesMsg) String() string {
 
 // handleOfferedHashesMsg protocol msg handler calls the incoming streamer interface
 // Filter method
-func (p *Peer) handleOfferedHashesMsg(req *OfferedHashesMsg) error {
+func (p *Peer) handleOfferedHashesMsg(ctx context.Context, req *OfferedHashesMsg) error {
 	metrics.GetOrRegisterCounter("peer.handleofferedhashes", nil).Inc(1)
 
 	c, _, err := p.getOrSetClient(req.Stream, req.From, req.To)
@@ -287,7 +287,7 @@ func (m WantedHashesMsg) String() string {
 // handleWantedHashesMsg protocol msg handler
 // * sends the next batch of unsynced keys
 // * sends the actual data chunks as per WantedHashesMsg
-func (p *Peer) handleWantedHashesMsg(req *WantedHashesMsg) error {
+func (p *Peer) handleWantedHashesMsg(ctx context.Context, req *WantedHashesMsg) error {
 	metrics.GetOrRegisterCounter("peer.handlewantedhashesmsg", nil).Inc(1)
 
 	log.Trace("received wanted batch", "peer", p.ID(), "stream", req.Stream, "from", req.From, "to", req.To)
@@ -362,7 +362,7 @@ func (m TakeoverProofMsg) String() string {
 	return fmt.Sprintf("Stream: '%v' [%v-%v], Root: %x, Sig: %x", m.Stream, m.Start, m.End, m.Root, m.Sig)
 }
 
-func (p *Peer) handleTakeoverProofMsg(req *TakeoverProofMsg) error {
+func (p *Peer) handleTakeoverProofMsg(ctx context.Context, req *TakeoverProofMsg) error {
 	_, err := p.getServer(req.Stream)
 	// store the strongest takeoverproof for the stream in streamer
 	return err

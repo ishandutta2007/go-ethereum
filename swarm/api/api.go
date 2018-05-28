@@ -36,7 +36,9 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/swarm/multihash"
+	"github.com/ethereum/go-ethereum/swarm/spancontext"
 	"github.com/ethereum/go-ethereum/swarm/storage"
+	opentracing "github.com/opentracing/opentracing-go"
 )
 
 type ErrResourceReturn struct {
@@ -248,9 +250,15 @@ func (self *Api) Store(data io.Reader, size int64, toEncrypt bool) (key storage.
 type ErrResolve error
 
 // DNS Resolver
-func (self *Api) Resolve(uri *URI) (storage.Key, error) {
+func (self *Api) Resolve(ctx context.Context, uri *URI) (storage.Key, error) {
 	apiResolveCount.Inc(1)
 	log.Trace("resolving", "uri", uri.Addr)
+
+	var sp opentracing.Span
+	ctx, sp = spancontext.StartSpan(
+		ctx,
+		"api.resolve")
+	defer sp.Finish()
 
 	// if the URI is immutable, check if the address looks like a hash
 	if uri.Immutable() {
@@ -461,7 +469,7 @@ func (self *Api) AddFile(mhash, path, fname string, content []byte, nameresolver
 		apiAddFileFail.Inc(1)
 		return nil, "", err
 	}
-	mkey, err := self.Resolve(uri)
+	mkey, err := self.Resolve(context.TODO(), uri)
 	if err != nil {
 		apiAddFileFail.Inc(1)
 		return nil, "", err
@@ -511,7 +519,7 @@ func (self *Api) RemoveFile(mhash, path, fname string, nameresolver bool) (strin
 		apiRmFileFail.Inc(1)
 		return "", err
 	}
-	mkey, err := self.Resolve(uri)
+	mkey, err := self.Resolve(context.TODO(), uri)
 	if err != nil {
 		apiRmFileFail.Inc(1)
 		return "", err
@@ -577,7 +585,7 @@ func (self *Api) AppendFile(mhash, path, fname string, existingSize int64, conte
 		apiAppendFileFail.Inc(1)
 		return nil, "", err
 	}
-	mkey, err := self.Resolve(uri)
+	mkey, err := self.Resolve(context.TODO(), uri)
 	if err != nil {
 		apiAppendFileFail.Inc(1)
 		return nil, "", err
@@ -631,7 +639,7 @@ func (self *Api) BuildDirectoryTree(mhash string, nameresolver bool) (key storag
 	if err != nil {
 		return nil, nil, err
 	}
-	key, err = self.Resolve(uri)
+	key, err = self.Resolve(context.TODO(), uri)
 	if err != nil {
 		return nil, nil, err
 	}

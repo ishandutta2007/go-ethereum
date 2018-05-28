@@ -22,6 +22,7 @@ package http
 import (
 	"archive/tar"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -182,7 +183,7 @@ func (s *Server) HandlePostFiles(w http.ResponseWriter, r *Request) {
 
 	var key storage.Key
 	if r.uri.Addr != "" && r.uri.Addr != "encrypt" {
-		key, err = s.api.Resolve(r.uri)
+		key, err = s.api.Resolve(context.TODO(), r.uri)
 		if err != nil {
 			postFilesFail.Inc(1)
 			Respond(w, r, fmt.Sprintf("cannot resolve %s: %s", r.uri.Addr, err), http.StatusInternalServerError)
@@ -340,7 +341,7 @@ func (s *Server) HandleDelete(w http.ResponseWriter, r *Request) {
 	log.Debug("handle.delete", "ruid", r.ruid)
 
 	deleteCount.Inc(1)
-	key, err := s.api.Resolve(r.uri)
+	key, err := s.api.Resolve(context.TODO(), r.uri)
 	if err != nil {
 		deleteFail.Inc(1)
 		Respond(w, r, fmt.Sprintf("cannot resolve %s: %s", r.uri.Addr, err), http.StatusInternalServerError)
@@ -446,7 +447,7 @@ func (s *Server) HandlePostResource(w http.ResponseWriter, r *Request) {
 		// that means that we retrieve the manifest and inspect its Hash member.
 		manifestKey := r.uri.Key()
 		if manifestKey == nil {
-			manifestKey, err = s.api.Resolve(r.uri)
+			manifestKey, err = s.api.Resolve(context.TODO(), r.uri)
 			if err != nil {
 				getFail.Inc(1)
 				Respond(w, r, fmt.Sprintf("cannot resolve %s: %s", r.uri.Addr, err), http.StatusNotFound)
@@ -529,7 +530,7 @@ func (s *Server) handleGetResource(w http.ResponseWriter, r *Request) {
 	var manifestKey storage.Key
 	manifestKey = r.uri.Key()
 	if manifestKey == nil {
-		manifestKey, err = s.api.Resolve(r.uri)
+		manifestKey, err = s.api.Resolve(context.TODO(), r.uri)
 		if err != nil {
 			getFail.Inc(1)
 			Respond(w, r, fmt.Sprintf("cannot resolve %s: %s", r.uri.Addr, err), http.StatusNotFound)
@@ -628,7 +629,7 @@ func (s *Server) HandleGet(w http.ResponseWriter, r *Request) {
 	var err error
 	key := r.uri.Key()
 	if key == nil {
-		key, err = s.api.Resolve(r.uri)
+		key, err = s.api.Resolve(context.TODO(), r.uri)
 		if err != nil {
 			getFail.Inc(1)
 			Respond(w, r, fmt.Sprintf("cannot resolve %s: %s", r.uri.Addr, err), http.StatusNotFound)
@@ -729,7 +730,7 @@ func (s *Server) HandleGetFiles(w http.ResponseWriter, r *Request) {
 		return
 	}
 
-	key, err := s.api.Resolve(r.uri)
+	key, err := s.api.Resolve(context.TODO(), r.uri)
 	if err != nil {
 		getFilesFail.Inc(1)
 		Respond(w, r, fmt.Sprintf("cannot resolve %s: %s", r.uri.Addr, err), http.StatusNotFound)
@@ -805,7 +806,7 @@ func (s *Server) HandleGetList(w http.ResponseWriter, r *Request) {
 		return
 	}
 
-	key, err := s.api.Resolve(r.uri)
+	key, err := s.api.Resolve(context.TODO(), r.uri)
 	if err != nil {
 		getListFail.Inc(1)
 		Respond(w, r, fmt.Sprintf("cannot resolve %s: %s", r.uri.Addr, err), http.StatusNotFound)
@@ -914,7 +915,7 @@ func (s *Server) HandleGetFile(w http.ResponseWriter, r *Request) {
 	manifestKey := r.uri.Key()
 
 	if manifestKey == nil {
-		manifestKey, err = s.api.Resolve(r.uri)
+		manifestKey, err = s.api.Resolve(context.TODO(), r.uri)
 		if err != nil {
 			getFileFail.Inc(1)
 			Respond(w, r, fmt.Sprintf("cannot resolve %s: %s", r.uri.Addr, err), http.StatusNotFound)

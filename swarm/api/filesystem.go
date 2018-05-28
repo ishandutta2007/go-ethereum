@@ -18,6 +18,7 @@ package api
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -189,7 +190,7 @@ func (self *FileSystem) Download(bzzpath, localpath string) error {
 	if err != nil {
 		return err
 	}
-	key, err := self.api.Resolve(uri)
+	key, err := self.api.Resolve(context.TODO(), uri)
 	if err != nil {
 		return err
 	}

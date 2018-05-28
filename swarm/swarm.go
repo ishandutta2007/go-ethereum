@@ -21,6 +21,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
+	"io"
 	"math/big"
 	"net"
 	"path/filepath"
@@ -49,6 +50,9 @@ import (
 	"github.com/ethereum/go-ethereum/swarm/state"
 	"github.com/ethereum/go-ethereum/swarm/storage"
 	"github.com/ethereum/go-ethereum/swarm/storage/mock"
+	jaeger "github.com/uber/jaeger-client-go"
+	jaegercfg "github.com/uber/jaeger-client-go/config"
+	jaegerlog "github.com/uber/jaeger-client-go/log"
 )
 
 var (
@@ -75,6 +79,8 @@ type Swarm struct {
 	lstore      *storage.LocalStore // local store, needs to store for releasing resources after node stopped
 	sfs         *fuse.SwarmFS       // need this to cleanup all the active mounts on node exit
 	ps          *pss.Pss
+
+	tracerClose io.Closer
 }
 
 type SwarmAPI struct {
@@ -352,6 +358,7 @@ Start is called when the stack is started
 */
 // implements the node.Service interface
 func (self *Swarm) Start(srv *p2p.Server) error {
+	self.tracerClose = initTracer()
 	startTime = time.Now()
 
 	// update uaddr to correct enode
@@ -423,6 +430,11 @@ func (self *Swarm) updateGauges() {
 // implements the node.Service interface
 // stops all component services.
 func (self *Swarm) Stop() error {
+	err := self.tracerClose.Close()
+	if err != nil {
+		return err
+	}
+
 	if self.ps != nil {
 		self.ps.Stop()
 	}
@@ -537,4 +549,40 @@ type Info struct {
 
 func (self *Info) Info() *Info {
 	return self
+}
+
+func initTracer() (closer io.Closer) {
+	// Sample configuration for testing. Use constant sampling to sample every trace
+	// and enable LogSpan to log every span via configured Logger.
+	cfg := jaegercfg.Configuration{
+		Sampler: &jaegercfg.SamplerConfig{
+			Type:  jaeger.SamplerTypeConst,
+			Param: 1,
+		},
+		Reporter: &jaegercfg.ReporterConfig{
+			LogSpans:            true,
+			BufferFlushInterval: 1 * time.Second,
+			LocalAgentHostPort:  "0.0.0.0:6831",
+		},
+	}
+
+	// Example logger and metrics factory. Use github.com/uber/jaeger-client-go/log
+	// and github.com/uber/jaeger-lib/metrics respectively to bind to real logging and metrics
+	// frameworks.
+	jLogger := jaegerlog.StdLogger
+	//jMetricsFactory := metrics.NullFactory
+
+	// Initialize tracer with a logger and a metrics factory
+	closer, err := cfg.InitGlobalTracer(
+		"swarm",
+		jaegercfg.Logger(jLogger),
+		//jaegercfg.Metrics(jMetricsFactory),
+		//jaegercfg.Observer(rpcmetrics.NewObserver(jMetricsFactory, rpcmetrics.DefaultNameNormalizer)),
+	)
+	if err != nil {
+		panic(fmt.Sprintf("Could not initialize jaeger tracer: %s", err.Error()))
+		return nil
+	}
+
+	return closer
 }
