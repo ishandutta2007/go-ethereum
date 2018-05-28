@@ -284,7 +284,7 @@ func (self *PyramidChunker) processor(id int64) {
 }
 
 func (self *PyramidChunker) processChunk(id int64, job *chunkJob) {
-	log.Debug("pyramid.chunker: processChunk()", "id", id)
+	log.Trace("pyramid.chunker: processChunk()", "id", id)
 
 	ref, err := self.putter.Put(job.chunk)
 	if err != nil {
