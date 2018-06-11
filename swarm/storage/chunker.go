@@ -409,8 +409,10 @@ func (self *LazyChunkReader) Size(quitC chan bool) (n int64, err error) {
 				return 0, fmt.Errorf("root chunk not found for %v", self.key.Hex())
 			}
 		}
+		log.Debug("lazychunkreader.size.len nil", "key", self.key, "len", len(chunkData))
 		self.chunkData = chunkData
 	}
+	log.Debug("lazychunkreader.size.len", "key", self.key, "len", len(self.chunkData))
 	return self.chunkData.Size(), nil
 }
 
