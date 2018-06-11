@@ -21,6 +21,7 @@ import (
 	"crypto"
 	"crypto/rand"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"hash"
 	"io"
@@ -347,6 +348,7 @@ func (self *ContentAddressValidator) Validate(addr Address, data []byte) bool {
 
 	if !bytes.Equal(hash, addr[:]) {
 		log.Error("invalid content address", "expected", fmt.Sprintf("%x", hash), "have", addr)
+		log.Debug("invalid content address data", "addr", addr, "data", hex.EncodeToString(data))
 		return false
 	}
 	return true
