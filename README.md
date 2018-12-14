@@ -309,3 +309,10 @@ included in our repository in the `COPYING.LESSER` file.
 The go-ethereum binaries (i.e. all code inside of the `cmd` directory) is licensed under the
 [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.en.html), also included
 in our repository in the `COPYING` file.
+
+### Support:
+
+If you want the good work to continue please support us on
+
+* [PAYPAL](https://www.paypal.me/ishandutta2007)
+* [BITCOIN ADDRESS: 3LZazKXG18Hxa3LLNAeKYZNtLzCxpv1LyD](https://www.coinbase.com/join/5a8e4a045b02c403bc3a9c0c)
